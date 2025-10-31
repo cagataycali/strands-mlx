@@ -10,6 +10,12 @@ MLX model provider for [Strands Agents](https://strandsagents.com) - inference, 
 
 **Requirements:** Python ≤3.13, macOS/Linux
 
+**Quick install with uv (recommended):**
+```bash
+uv venv --python 3.13 && source .venv/bin/activate && uv pip install strands-agents strands-agents-tools strands-mlx
+```
+
+**Or with pip:**
 ```bash
 pip install strands-mlx
 ```
