@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "strands-mlx"
-version = "0.1.1"
+version = "0.2.0"
 description = "Use MLX in Strands Agents"
 readme = "README.md"
 requires-python = ">=3.10,<3.14"
@@ -37,6 +37,7 @@ dependencies = [
     "strands-agents",
     "mlx",
     "mlx-lm",
+    "mlx-vlm"
 ]
 
 [project.optional-dependencies]
@@ -49,6 +50,27 @@ dev = [
     "mypy",
     "ruff",
 ]
+vision = [
+    "mlx-vlm>=0.3.0",
+    "pillow>=10.0.0",
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "soundfile>=0.13.0",
+]
+all = [
+    "strands-agents-tools",
+    "pytest>=7.0",
+    "pytest-asyncio",
+    "black",
+    "isort",
+    "mypy",
+    "ruff",
+    "mlx-vlm>=0.3.0",
+    "pillow>=10.0.0",
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "soundfile>=0.13.0"
+]
 
 [project.urls]
 Homepage = "https://github.com/cagataycali/strands-mlx"
@@ -58,7 +80,7 @@ Issues = "https://github.com/cagataycali/strands-mlx/issues"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["strands_mlx*"]
-exclude = ["tests*"]
+exclude = ["tests*", "test_media*"]
 
 [tool.black]
 line-length = 100
