@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "strands-mlx"
-version = "0.2.3"
+version = "0.2.4"
 description = "Use MLX in Strands Agents"
 readme = "README.md"
 requires-python = ">=3.10,<3.14"
@@ -35,6 +35,7 @@ classifiers = [
 
 dependencies = [
     "strands-agents",
+    "huggingface_hub",
     "mlx",
     "mlx-lm",
     "mlx-vlm"
