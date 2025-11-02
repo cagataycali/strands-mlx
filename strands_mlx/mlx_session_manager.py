@@ -1,6 +1,7 @@
 """MLX Session Manager - Model-agnostic training data export.
 
 Uses tokenizer's native chat template for formatting - compatible with mlx-lm training.
+Saves conversations turn-by-turn to prevent token overflow.
 """
 
 import json
@@ -19,7 +20,11 @@ logger = logging.getLogger(__name__)
 
 
 class MLXSessionManager(SessionManager):
-    """MLX-LM compatible session manager - uses tokenizer's chat template."""
+    """MLX-LM compatible session manager - uses tokenizer's chat template.
+
+    Saves conversations turn-by-turn (one user+assistant exchange per line)
+    to prevent token overflow during training.
+    """
 
     def __init__(
         self,
@@ -62,8 +67,8 @@ class MLXSessionManager(SessionManager):
         # Agent reference (captured during initialize)
         self.agent = None
 
-        # Track last message count to detect new conversations
-        self.last_message_count = 0
+        # Track last saved message index to save only new turns
+        self.last_saved_index = -1
 
         logger.info(f"MLXSessionManager: session_id={session_id}, output={self.jsonl_path}")
 
@@ -76,6 +81,12 @@ class MLXSessionManager(SessionManager):
         Returns:
             List of dicts in format: {"role": "...", "content": "..."}
         """
+        # DEBUG: Show input messages
+        logger.debug(f"\n=== Converting {len(messages)} Strands messages ===")
+        for i, msg in enumerate(messages):
+            role = msg.get("role") if isinstance(msg, dict) else msg.role
+            logger.debug(f"  {i}: role={role}")
+
         chat_messages = []
         tools = []
 
@@ -84,84 +95,111 @@ class MLXSessionManager(SessionManager):
             content = msg.get("content") if isinstance(msg, dict) else msg.content
 
             if role == "user":
-                # Handle user messages
+                # Handle user messages and tool results
                 message = {"role": "user", "content": ""}
 
                 if isinstance(content, list):
-                    # Collect text and tool results separately
                     text_parts = []
-                    tool_results = []
 
                     for item in content:
                         if isinstance(item, dict):
                             if "text" in item:
                                 text_parts.append(item["text"])
                             elif "toolResult" in item:
-                                tool_results.append(item["toolResult"])
+                                # Tool results become "tool" role messages in ChatML
+                                tool_result = item["toolResult"]
+                                result_text = []
 
-                    # Combine text
+                                result_content = tool_result.get("content", [])
+                                for result_item in result_content:
+                                    if isinstance(result_item, dict) and "text" in result_item:
+                                        result_text.append(result_item["text"])
+
+                                if result_text:
+                                    chat_messages.append(
+                                        {
+                                            "role": "tool",
+                                            "content": "".join(result_text),
+                                            "tool_call_id": tool_result.get("toolUseId", ""),
+                                        }
+                                    )
+
                     message["content"] = "".join(text_parts)
 
-                # Add user message first
+                # Add user message if has content
                 if message["content"]:
                     chat_messages.append(message)
 
-                # Add tool results as separate "tool" role messages (ChatML format)
-                if isinstance(content, list):
-                    for item in content:
-                        if isinstance(item, dict) and "toolResult" in item:
-                            tool_result = item["toolResult"]
-                            result_content = tool_result.get("content", [])
-                            result_text = []
-                            for result_item in result_content:
-                                if isinstance(result_item, dict) and "text" in result_item:
-                                    result_text.append(result_item["text"])
-
-                            if result_text:
-                                # Use proper "tool" role - let tokenizer's chat template handle formatting
-                                chat_messages.append(
-                                    {
-                                        "role": "tool",
-                                        "content": "".join(result_text),
-                                        # Include tool_call_id if available
-                                        "tool_call_id": tool_result.get("toolUseId", ""),
-                                    }
-                                )
-
             elif role == "assistant":
-                # Handle assistant messages
+                # Handle assistant messages with proper reasoning_content field
                 message = {"role": "assistant", "content": ""}
                 tool_calls = []
 
                 if isinstance(content, list):
+                    reasoning_parts = []
                     text_parts = []
 
                     for item in content:
                         if isinstance(item, dict):
+                            if "reasoningContent" in item:
+                                # Handle both text and signature fields
+                                # Bedrock can return:
+                                #   1. {"reasoningContent": {"reasoningText": {"text": "...", "signature": "..."}}}
+                                #   2. {"reasoningContent": {"text": "...", "signature": "..."}}  ← Older format
+                                reasoning_content = item["reasoningContent"]
+
+                                # Check for reasoningText wrapper (new Bedrock format)
+                                if "reasoningText" in reasoning_content:
+                                    reasoning_content = reasoning_content["reasoningText"]
+
+                                # Only use text field (skip cryptographic signatures)
+                                if "text" in reasoning_content:
+                                    reasoning_text = reasoning_content["text"]
+                                    # Only add non-empty reasoning
+                                    if reasoning_text.strip():
+                                        reasoning_parts.append(reasoning_text)
                             if "text" in item:
                                 text_parts.append(item["text"])
                             elif "toolUse" in item:
-                                # Extract tool call with proper ID for ChatML
+                                # Extract tool calls
                                 tool_use = item["toolUse"]
                                 tool_call = {
-                                    "id": tool_use.get("toolUseId", ""),  # Include ID
-                                    "type": "function",  # OpenAI format
+                                    "id": tool_use.get("toolUseId", ""),
+                                    "type": "function",
                                     "function": {
                                         "name": tool_use.get("name"),
-                                        "arguments": json.dumps(
-                                            tool_use.get("input", {})
-                                        ),  # JSON string
+                                        "arguments": json.dumps(tool_use.get("input", {})),
                                     },
                                 }
                                 tool_calls.append(tool_call)
 
+                    # Set reasoning_content field only if non-empty (ChatML will put in <think> tags)
+                    if reasoning_parts:
+                        combined_reasoning = "".join(reasoning_parts).strip()
+                        if combined_reasoning:  # Double check after strip
+                            message["reasoning_content"] = combined_reasoning
+                            logger.debug(
+                                f"  ✅ Set reasoning_content: {combined_reasoning[:50]}..."
+                            )
+
+                    # Set content field
                     message["content"] = "".join(text_parts)
 
                 # Add tool calls if present
                 if tool_calls:
                     message["tool_calls"] = tool_calls
 
-                chat_messages.append(message)
+                # Only add if has content or tool calls
+                if message["content"].strip() or tool_calls:
+                    chat_messages.append(message)
+
+        # DEBUG: Show converted chat messages
+        logger.debug(f"=== Converted to {len(chat_messages)} chat messages ===")
+        for i, msg in enumerate(chat_messages):
+            role = msg["role"]
+            has_tc = bool(msg.get("tool_calls"))
+            has_content = bool(msg.get("content", "").strip())
+            logger.debug(f"  {i}: role={role}, tool_calls={has_tc}, content={has_content}")
 
         return chat_messages
 
@@ -199,39 +237,83 @@ class MLXSessionManager(SessionManager):
 
         return tools if tools else None
 
-    def _format_conversation(self, agent: "Agent") -> str:
-        """Format agent's message history using tokenizer's chat template.
+    def _format_turn(
+        self,
+        system_prompt: str,
+        user_messages: List[Dict[str, Any]],
+        assistant_messages: List[Dict[str, Any]],
+        tools: Optional[List[Dict[str, Any]]] = None,
+    ) -> str:
+        """Format a single turn (user + assistant exchange) using tokenizer's chat template.
+
+        For tool calls, the message order must be:
+        - user (question)
+        - assistant (tool_calls)
+        - tool (results)  ← Between assistant messages!
+        - assistant (final response)
 
         Args:
-            agent: The Strands agent
+            system_prompt: System prompt for this turn
+            user_messages: List of user/tool messages for this turn
+            assistant_messages: List of assistant messages for this turn
+            tools: Optional tool specifications
 
         Returns:
             Formatted text string ready for training
         """
-        # Get current system prompt from agent (captures dynamic prompts)
-        current_system_prompt = None
-        if hasattr(agent, "system_prompt") and agent.system_prompt:
-            current_system_prompt = agent.system_prompt
-        elif self.system_prompt:
-            current_system_prompt = self.system_prompt
+        # DEBUG: Show what we're formatting
+        logger.debug(f"\n_format_turn called:")
+        logger.debug(f"  user_messages: {len(user_messages)}")
+        for i, msg in enumerate(user_messages):
+            logger.debug(f"    {i}: role={msg['role']}")
+        logger.debug(f"  assistant_messages: {len(assistant_messages)}")
+        for i, msg in enumerate(assistant_messages):
+            has_tc = bool(msg.get("tool_calls"))
+            logger.debug(f"    {i}: has_tool_calls={has_tc}")
+
+        # Build turn messages: system + user + assistant
+        turn_messages = [{"role": "system", "content": system_prompt}]
+
+        # Interleave user/tool messages with assistant messages correctly
+        # Pattern 1 (simple): [user, assistant]
+        # Pattern 2 (tool): [user, assistant(tool_calls), tool(results), assistant(response)]
+
+        # Separate user messages and tool messages
+        pure_user_messages = [msg for msg in user_messages if msg["role"] == "user"]
+        tool_messages = [msg for msg in user_messages if msg["role"] == "tool"]
+
+        logger.debug(f"  pure_user: {len(pure_user_messages)}, tool: {len(tool_messages)}")
+
+        # Add initial user message
+        if pure_user_messages:
+            turn_messages.append(pure_user_messages[0])
+
+        # If we have tool calls, interleave correctly
+        if tool_messages and len(assistant_messages) >= 1:
+            # Add assistant message with tool_calls
+            turn_messages.append(assistant_messages[0])
+            # Add tool results
+            turn_messages.extend(tool_messages)
+            # Add remaining assistant messages (final response)
+            turn_messages.extend(assistant_messages[1:])
+            logger.debug(f"  → Tool cycle: added {len(tool_messages)} tool messages")
         else:
-            current_system_prompt = "You are a helpful AI assistant."
+            # No tool calls, just add all assistant messages
+            turn_messages.extend(assistant_messages)
+            logger.debug(f"  → Simple: no tool messages")
 
-        # Convert Strands messages to chat format
-        chat_messages = self._convert_strands_messages_to_chat_format(agent.messages)
-
-        # Prepend system message - matches mlx-lm pattern
-        if current_system_prompt:
-            chat_messages.insert(0, {"role": "system", "content": current_system_prompt})
-
-        # Extract tools if available
-        tools = self._extract_tool_specs(agent)
+        # DEBUG: Show message structure before template
+        logger.debug(f"  Messages being templated:")
+        for i, msg in enumerate(turn_messages):
+            has_reasoning = "reasoning_content" in msg
+            logger.debug(f"    {i}: role={msg['role']}, has_reasoning={has_reasoning}")
 
         # Use tokenizer's native chat template
+        # NOTE: We don't pass tools= parameter because it forces empty <think> tags
+        # Tool calls are already formatted in the messages themselves
         try:
             formatted_text = self.tokenizer.apply_chat_template(
-                chat_messages,
-                tools=tools,
+                turn_messages,
                 tokenize=self.tokenize,
                 add_generation_prompt=self.add_generation_prompt,
                 **self.template_kwargs,
@@ -241,11 +323,128 @@ class MLXSessionManager(SessionManager):
             if self.tokenize:
                 formatted_text = self.tokenizer.decode(formatted_text)
 
+            # Strip empty <think> tags (Qwen3 template adds them even when reasoning_content is absent)
+            import re
+
+            formatted_text = re.sub(r"<think>\s*</think>\s*", "", formatted_text)
+
             return formatted_text
 
         except Exception as e:
             logger.error(f"Error applying chat template: {e}", exc_info=True)
             raise
+
+    def _extract_turns(self, messages: List[Any], start_index: int = 0) -> List[Dict[str, Any]]:
+        """Extract complete turns (user + assistant exchanges) from messages.
+
+        A complete turn is:
+        - Simple: user -> assistant
+        - With tools: user -> assistant(tool_calls) -> tool(results) -> assistant(response)
+
+        Args:
+            messages: List of all messages
+            start_index: Index to start extracting from
+
+        Returns:
+            List of turn dicts: {"user_messages": [...], "assistant_messages": [...]}
+        """
+        turns = []
+        current_turn = {"user_messages": [], "assistant_messages": []}
+
+        # Convert messages starting from start_index
+        chat_messages = self._convert_strands_messages_to_chat_format(messages[start_index:])
+
+        # DEBUG: Show converted message sequence
+        logger.debug(f"\n=== Converting {len(chat_messages)} messages ===")
+        for i, msg in enumerate(chat_messages):
+            role = msg["role"]
+            has_tool_calls = bool(msg.get("tool_calls"))
+            has_content = bool(msg.get("content", "").strip())
+            logger.debug(
+                f"  {i+1}. role={role}, tool_calls={has_tool_calls}, has_content={has_content}"
+            )
+
+        for msg in chat_messages:
+            role = msg["role"]
+
+            if role == "user":
+                # Start new turn ONLY if previous turn is complete
+                # Complete = has final assistant response (not just tool_calls)
+                if current_turn["user_messages"] and current_turn["assistant_messages"]:
+                    # Check if last assistant has tool_calls
+                    last_assistant = current_turn["assistant_messages"][-1]
+                    has_pending_tool_calls = last_assistant.get("tool_calls")
+
+                    logger.debug(
+                        f"  → Checking if should save turn: has_pending={has_pending_tool_calls}"
+                    )
+
+                    # Only save if no pending tool calls (turn is complete)
+                    if not has_pending_tool_calls:
+                        logger.debug(
+                            f"  → Saving turn with {len(current_turn['user_messages'])}U + {len(current_turn['assistant_messages'])}A"
+                        )
+                        turns.append(current_turn)
+                        current_turn = {"user_messages": [], "assistant_messages": []}
+
+                # Add to current turn
+                current_turn["user_messages"].append(msg)
+
+            elif role == "tool":
+                # Tool results are part of SAME turn (don't start new turn)
+                current_turn["user_messages"].append(msg)
+
+            elif role == "assistant":
+                # Add to current turn
+                current_turn["assistant_messages"].append(msg)
+
+        # Add final turn if complete
+        if current_turn["user_messages"] and current_turn["assistant_messages"]:
+            has_tool_results = any(
+                msg.get("role") == "tool" for msg in current_turn["user_messages"]
+            )
+            last_assistant = current_turn["assistant_messages"][-1]
+            has_tool_calls = last_assistant.get("tool_calls")
+
+            logger.debug(f"  Final turn check:")
+            logger.debug(f"    assistant_messages: {len(current_turn['assistant_messages'])}")
+            logger.debug(f"    has_tool_results: {has_tool_results}")
+            logger.debug(f"    last_has_tool_calls: {bool(has_tool_calls)}")
+
+            # If last assistant has tool_calls, we MUST have tool_results
+            if has_tool_calls and not has_tool_results:
+                logger.debug(f"  → Skipping incomplete turn (tool_calls without results)")
+                return turns
+
+            # If we have tool results, we need 2+ assistant messages
+            if has_tool_results:
+                if len(current_turn["assistant_messages"]) < 2:
+                    logger.debug(
+                        f"  → Skipping incomplete turn (has tool_results but only 1 assistant message)"
+                    )
+                    return turns
+
+                # Check if last assistant has final response (and no tool_calls)
+                has_text_response = last_assistant.get("content", "").strip()
+
+                if has_tool_calls:
+                    logger.debug(
+                        f"  → Skipping incomplete turn (last assistant still has tool_calls)"
+                    )
+                    return turns
+
+                if not has_text_response:
+                    logger.debug(f"  → Skipping incomplete turn (no final response)")
+                    return turns
+
+            # Simple turn (no tools) or complete tool cycle
+            logger.debug(
+                f"  → Saving final turn with {len(current_turn['user_messages'])}U + {len(current_turn['assistant_messages'])}A"
+            )
+            turns.append(current_turn)
+
+        logger.debug(f"=== Extracted {len(turns)} turns ===\n")
+        return turns
 
     def initialize(self, agent: "Agent", **kwargs: Any) -> None:
         """Initialize with agent reference.
@@ -300,74 +499,71 @@ class MLXSessionManager(SessionManager):
         pass
 
     def sync_agent(self, agent: "Agent", **kwargs: Any) -> None:
-        """Save complete conversation ONLY after final assistant response.
+        """Save new complete turns (user + assistant exchanges).
+
+        Only saves turns that have a final assistant response (not just tool_calls).
 
         Args:
             agent: The Strands agent
             **kwargs: Additional sync arguments
         """
-        # Check if we have new messages
-        current_message_count = len(agent.messages)
+        # Nothing to process
+        if len(agent.messages) == 0:
+            return
 
-        if current_message_count <= self.last_message_count:
-            return  # No new messages
+        logger.info(f"🔄 sync_agent: {len(agent.messages)} total messages")
 
-        # Check if last message is from assistant with actual text content
-        if current_message_count > 0:
-            last_msg = agent.messages[-1]
-            last_role = last_msg.get("role") if isinstance(last_msg, dict) else last_msg.role
+        # Get current system prompt
+        current_system_prompt = (
+            agent.system_prompt
+            if hasattr(agent, "system_prompt") and agent.system_prompt
+            else self.system_prompt or "You are a helpful AI assistant."
+        )
 
-            # Only save if last message is from assistant
-            if last_role != "assistant":
-                return  # Wait for assistant response
+        # Extract tools if available
+        tools = self._extract_tool_specs(agent)
 
-            # Check if assistant message has text content (not just tool call)
-            last_content = (
-                last_msg.get("content") if isinstance(last_msg, dict) else last_msg.content
-            )
+        # Extract complete turns from ALL messages (always process from beginning)
+        all_turns = self._extract_turns(agent.messages)
 
-            has_text = False
-            has_only_tool_use = True
+        # Count how many COMPLETE turns we've already saved
+        # Each saved JSONL line = 1 turn
+        already_saved_turn_count = self.get_example_count()
 
-            if isinstance(last_content, list):
-                for item in last_content:
-                    if isinstance(item, dict):
-                        if "text" in item and item["text"].strip():
-                            has_text = True
-                            has_only_tool_use = False
-                        elif "toolUse" not in item:
-                            has_only_tool_use = False
+        # Only save NEW complete turns
+        new_turns = all_turns[already_saved_turn_count:]
 
-            # Skip if no text or only tool calls (wait for final response)
-            if not has_text or has_only_tool_use:
-                logger.debug(
-                    f"Skipping save - waiting for final assistant response "
-                    f"(has_text={has_text}, only_tool={has_only_tool_use})"
-                )
-                return
-
-        # We have complete exchange - format and save
-        try:
-            formatted_text = self._format_conversation(agent)
-
-            # Create JSONL entry (mlx-lm training format)
-            jsonl_entry = {"text": formatted_text}
-
-            # Append to file
-            with open(self.jsonl_path, "a", encoding="utf-8") as f:
-                json.dump(jsonl_entry, f, ensure_ascii=False)
-                f.write("\n")
-
+        if not new_turns:
             logger.info(
-                f"✅ Saved conversation: {len(formatted_text)} chars, "
-                f"{current_message_count} messages"
+                f"  → No new complete turns (have {already_saved_turn_count}, found {len(all_turns)})"
             )
+            return
 
-            # Update last message count
-            self.last_message_count = current_message_count
+        # Save each new turn
+        saved_count = 0
+        for turn in new_turns:
+            try:
+                formatted_text = self._format_turn(
+                    current_system_prompt, turn["user_messages"], turn["assistant_messages"], tools
+                )
 
-        except Exception as e:
-            logger.error(f"Error saving conversation: {e}", exc_info=True)
+                # Save to JSONL
+                with open(self.jsonl_path, "a", encoding="utf-8") as f:
+                    json.dump({"text": formatted_text}, f, ensure_ascii=False)
+                    f.write("\n")
+
+                saved_count += 1
+                logger.info(f"  → Saved turn {saved_count}/{len(new_turns)}")
+
+            except Exception as e:
+                logger.error(f"Error saving turn: {e}", exc_info=True)
+
+        # Update last_saved_index to the last message we processed
+        if saved_count > 0:
+            self.last_saved_index = len(agent.messages) - 1
+            logger.info(
+                f"✅ Saved {saved_count} new turn(s), total: {self.get_example_count()}, last_saved_index: {self.last_saved_index}"
+            )
 
     def redact_latest_message(
         self, redact_message: "Message", agent: "Agent", **kwargs: Any

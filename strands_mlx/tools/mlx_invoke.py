@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 @tool
 def mlx_invoke(
     prompt: str,
-    system_prompt: str,
+    system_prompt: str = "You are a helpful AI assistant.",
     model_id: str = "mlx-community/Qwen3-1.7B-4bit",
     adapter_path: Optional[str] = None,
     tools: Optional[List[str]] = None,
@@ -51,7 +51,7 @@ def mlx_invoke(
 
     Args:
         prompt: The prompt to process with the MLX model.
-        system_prompt: Custom system prompt for the agent.
+        system_prompt: Custom system prompt for the agent (default: "You are a helpful AI assistant.").
         model_id: HuggingFace model ID or local path.
             Examples: "mlx-community/Qwen3-1.7B-4bit", "mlx-community/qwen3-4b-4bit-DWQ"
         adapter_path: Optional path to LoRA adapter directory.
