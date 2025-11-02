@@ -15,23 +15,33 @@ pip install strands-mlx
 # With vision/audio/video
 pip install "strands-mlx[vision]"
 
-# Quick setup
-uv venv --python 3.13 && source .venv/bin/activate && uv pip install strands-agents strands-mlx
+# Environment setup
+uv venv --python 3.13 && source .venv/bin/activate
+
+# Install dependencies
+uv pip install strands-agents strands-mlx strands-agents-tools
 ```
 
 ---
 
 ## Quick Start
 
+agent.py
+
 ```python
 from strands import Agent
 from strands_mlx import MLXModel
-from strands_tools import calculator # uv pip install strands-agents-tools
+from strands_tools import calculator
 
 model = MLXModel(model_id="mlx-community/Qwen3-1.7B-4bit")
-agent = Agent(model=model)
+agent = Agent(model=model, tools=[calculator])
 
 agent("What is 29 * 42?")
+```
+
+```bash
+# Run with uv
+uv run agent.py
 ```
 
 ---
