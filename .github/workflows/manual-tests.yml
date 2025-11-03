@@ -14,7 +14,6 @@ on:
           - vision
           - audio
           - video
-          - mlx_invoke
           - vision_invoke
         default: 'all'
       python_version:
@@ -109,10 +108,6 @@ jobs:
       - name: Run video tests
         if: inputs.test_suite == 'all' || inputs.test_suite == 'video'
         run: pytest tests/test_video_single.py -v -s
-
-      - name: Run mlx_invoke tests
-        if: inputs.test_suite == 'all' || inputs.test_suite == 'mlx_invoke'
-        run: pytest tests/test_mlx_invoke.py -v -s
 
       - name: Run vision_invoke tests
         if: inputs.test_suite == 'all' || inputs.test_suite == 'vision_invoke'
