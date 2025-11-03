@@ -12,17 +12,11 @@ MLX provider for [Strands Agents](https://strandsagents.com) with LoRA training 
 **Requirements:** Python ≤3.13, macOS/Linux
 
 ```bash
-# Text models
-pip install strands-mlx
-
-# With vision/audio/video
-pip install "strands-mlx[vision]"
-
-# Environment setup
+# Create virtual environment
 uv venv --python 3.13 && source .venv/bin/activate
 
 # Install dependencies
-uv pip install strands-agents strands-mlx strands-agents-tools
+uv pip install strands-mlx strands-agents-tools
 ```
 
 ---
@@ -77,10 +71,13 @@ graph LR
 ```python
 from strands import Agent
 from strands_tools import calculator
-from strands_mlx import MLXSessionManager, dataset_splitter, mlx_trainer
+from strands_mlx import MLXModel, MLXSessionManager, dataset_splitter, mlx_trainer
 
-session = MLXSessionManager(session_id="my_training", storage_dir="./dataset")
-agent = Agent(model=model, tools=[calculator, dataset_splitter, mlx_trainer], session_manager=session)
+agent = Agent(
+  model=MLXModel(model_id="mlx-community/Qwen3-1.7B-4bit"),
+  session_manager=MLXSessionManager(session_id="my_training", storage_dir="./dataset"),
+  tools=[calculator, dataset_splitter, mlx_trainer],
+)
 
 # Have conversations - auto-saved to JSONL
 agent("Teach me about quantum computing")
