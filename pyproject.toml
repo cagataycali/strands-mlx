@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "strands-mlx"
-version = "0.2.5"
+version = "0.2.6"
 description = "Use MLX in Strands Agents"
 readme = "README.md"
 requires-python = ">=3.10,<3.14"
@@ -75,6 +75,9 @@ all = [
 Homepage = "https://github.com/cagataycali/strands-mlx"
 Repository = "https://github.com/cagataycali/strands-mlx"
 Issues = "https://github.com/cagataycali/strands-mlx/issues"
+
+[project.scripts]
+strands-mlx = "strands_mlx.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -88,11 +88,11 @@ jobs:
     - name: Run agent
       run: |
         if [ -n "${{ github.event.inputs.adapter_path }}" ]; then
-          python agent.py "${{ github.event.inputs.task }}" \
+          python strands_mlx/cli.py "${{ github.event.inputs.task }}" \
             --model "${{ github.event.inputs.model }}" \
             --adapter "${{ github.event.inputs.adapter_path }}"
         else
-          python agent.py "${{ github.event.inputs.task }}" \
+          python strands_mlx/cli.py "${{ github.event.inputs.task }}" \
             --model "${{ github.event.inputs.model }}"
         fi
     
