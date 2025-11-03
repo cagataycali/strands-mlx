@@ -1,0 +1,54 @@
+name: 📚 Documentation Improvement
+description: Suggest improvements to documentation, examples, or guides
+title: "[Docs]: "
+labels: ["documentation", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Help us improve strands-mlx documentation!
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: Documentation type
+      description: What kind of documentation needs improvement?
+      options:
+        - README
+        - API documentation
+        - Examples
+        - Training guides
+        - Vision models guide
+        - Troubleshooting
+        - Contributing guide
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: Current documentation
+      description: What's currently unclear or missing?
+      placeholder: |
+        The README doesn't explain...
+        The training example is missing...
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested
+    attributes:
+      label: Suggested improvement
+      description: How should the documentation be improved?
+      placeholder: |
+        Add a section explaining...
+        Include an example showing...
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Links to relevant sections, screenshots, or other helpful information

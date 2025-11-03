@@ -1,0 +1,22 @@
+adapter_path: ./adapter_advanced
+batch_size: 1
+data: ./advanced_data/advanced_training
+grad_checkpoint: true
+iters: 500
+learning_rate: 1.0e-05
+lora_parameters:
+  dropout: 0.05
+  rank: 8
+  scale: 16.0
+lr_schedule:
+  arguments:
+  - 1.0e-05
+  - 500
+  - 1.0e-07
+  name: cosine_decay
+  warmup: 100
+max_seq_length: 2048
+model: mlx-community/Qwen3-1.7B-4bit
+optimizer: adamw
+optimizer_config:
+  weight_decay: 0.01

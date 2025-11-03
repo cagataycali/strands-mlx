@@ -1,0 +1,63 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement for strands-mlx
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please describe your idea below.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What problem does this feature solve? What use case does it enable?
+      placeholder: |
+        I'm trying to... but currently I have to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How should this feature work? Include code examples if possible.
+      placeholder: |
+        ```python
+        # Example of how the feature would be used
+        agent.tool.new_feature(...)
+        ```
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which area does this feature relate to?
+      options:
+        - MLXModel (text inference)
+        - MLXVisionModel (vision/audio/video)
+        - Training pipeline
+        - Tools
+        - Documentation
+        - Examples
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches have you considered? Why is this the best solution?
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: |
+        - Are there similar features in other frameworks?
+        - Would you be willing to contribute a PR?
+        - Any other relevant information?

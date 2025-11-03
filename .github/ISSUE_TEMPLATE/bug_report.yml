@@ -1,0 +1,117 @@
+name: 🐛 Bug Report
+description: Report a bug or unexpected behavior in strands-mlx
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the sections below to help us fix it.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+      placeholder: What happened vs. what you expected to happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Provide minimal code to reproduce the issue
+      placeholder: |
+        ```python
+        from strands import Agent
+        from strands_mlx import MLXModel
+        
+        model = MLXModel(model_id="mlx-community/Qwen3-1.7B-4bit")
+        agent = Agent(model=model)
+        
+        # Bug occurs here...
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened? Include error messages and tracebacks.
+      render: shell
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component is affected?
+      options:
+        - MLXModel (text inference)
+        - MLXVisionModel (vision/audio/video)
+        - MLXSessionManager (data collection)
+        - mlx_trainer (training)
+        - dataset_splitter (data processing)
+        - mlx_invoke (runtime switching)
+        - mlx_vision_invoke (vision tool)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: "3.11.5"
+    validations:
+      required: true
+
+  - type: input
+    id: strands-mlx-version
+    attributes:
+      label: strands-mlx version
+      placeholder: "0.2.4"
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: Operating system
+      placeholder: "macOS 15.0.1 (Apple Silicon M2)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: hardware
+    attributes:
+      label: Hardware
+      description: What hardware are you using?
+      options:
+        - Apple Silicon (M1/M2/M3/M4)
+        - Intel Mac
+        - Linux (x86_64)
+        - Linux (ARM64)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: |
+        - Have you tried different models?
+        - Does it work with other configurations?
+        - Any relevant logs or screenshots?

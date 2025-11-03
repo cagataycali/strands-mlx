@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💬 GitHub Discussions
+    url: https://github.com/cagataycali/strands-mlx/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: 📖 Strands Agents Documentation
+    url: https://strandsagents.com
+    about: Learn more about Strands Agents framework
+  - name: 🤖 MLX Documentation
+    url: https://ml-explore.github.io/mlx/
+    about: Learn more about Apple MLX framework
