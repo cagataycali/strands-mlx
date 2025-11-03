@@ -4,9 +4,9 @@ This tool wraps mlx-vlm's LoRA training functionality for fine-tuning vision/aud
 on training data collected from Strands conversations.
 """
 
-import traceback
 import logging
 import os
+import traceback
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -92,17 +92,17 @@ def mlx_vision_trainer(
     try:
         # Check if mlx-vlm is available
         try:
+            import mlx.optimizers as optim
+            from datasets import load_dataset
             from mlx_vlm import load
-            from mlx_vlm.utils import load_image_processor
+            from mlx_vlm.prompt_utils import apply_chat_template as vlm_apply_chat_template
             from mlx_vlm.trainer import Dataset, Trainer, save_adapter
             from mlx_vlm.trainer.utils import (
                 apply_lora_layers,
                 find_all_linear_names,
                 get_peft_model,
             )
-            from mlx_vlm.prompt_utils import apply_chat_template as vlm_apply_chat_template
-            import mlx.optimizers as optim
-            from datasets import load_dataset
+            from mlx_vlm.utils import load_image_processor
         except ImportError:
             return {
                 "status": "error",
@@ -151,7 +151,7 @@ def mlx_vision_trainer(
                 ],
             }
 
-        logger.info(f"🚀 Starting MLX Vision LoRA training...")
+        logger.info("🚀 Starting MLX Vision LoRA training...")
         logger.info(f"📦 Model: {model}")
         logger.info(f"📊 Dataset: {dataset}")
         logger.info(f"💾 Adapters: {adapter_path}")
@@ -304,7 +304,7 @@ def mlx_vision_trainer(
         adapter_file = adapter_path_obj / "adapters.safetensors"
         config_file = adapter_path_obj / "adapter_config.json"
 
-        result_text = f"✅ **MLX Vision LoRA training complete!**\n\n"
+        result_text = "✅ **MLX Vision LoRA training complete!**\n\n"
         result_text += "**📊 Training Summary:**\n"
         result_text += f"- Model: {model}\n"
         result_text += f"- Steps: {step}\n"
@@ -321,19 +321,19 @@ def mlx_vision_trainer(
         if config_file.exists():
             result_text += f"- Config: {config_file}\n"
 
-        result_text += f"\n**🎯 Next steps:**\n"
-        result_text += f"```python\n"
-        result_text += f"# Load vision model with trained adapter\n"
-        result_text += f"from strands_mlx import MLXVisionModel\n\n"
-        result_text += f"model = MLXVisionModel(\n"
+        result_text += "\n**🎯 Next steps:**\n"
+        result_text += "```python\n"
+        result_text += "# Load vision model with trained adapter\n"
+        result_text += "from strands_mlx import MLXVisionModel\n\n"
+        result_text += "model = MLXVisionModel(\n"
         result_text += f'    model_id="{model}",\n'
         result_text += f'    adapter_path="{adapter_path}"\n'
-        result_text += f")\n"
-        result_text += f"```"
+        result_text += ")\n"
+        result_text += "```"
 
         return {"status": "success", "content": [{"text": result_text}]}
 
-    except Exception as e:
+    except Exception:
         error_trace = traceback.format_exc()
         return {
             "status": "error",

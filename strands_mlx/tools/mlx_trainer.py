@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
 import yaml
-
 from strands import tool
 
 # Global registry for background training tasks
@@ -49,7 +48,7 @@ class TrainingTask:
             result = _execute_training_sync(self.config, self.stop_flag)
             self.result = result
             self.status = "completed" if result["status"] == "success" else "failed"
-        except Exception as e:
+        except Exception:
             self.error = traceback.format_exc()
             self.status = "failed"
         finally:
@@ -166,7 +165,7 @@ def _execute_training_sync(
         Training results
     """
     try:
-        from mlx_lm.lora import run, CONFIG_DEFAULTS
+        from mlx_lm.lora import CONFIG_DEFAULTS, run
 
         # Validate required fields
         if "data" not in config:
@@ -200,7 +199,7 @@ def _execute_training_sync(
         os.environ["TOKENIZERS_PARALLELISM"] = "true"
 
         # Log training start
-        print(f"\n🚀 Starting MLX LoRA training...")
+        print("\n🚀 Starting MLX LoRA training...")
         print(f"📦 Model: {args.model}")
         print(f"📊 Data: {data_path}")
         print(f"💾 Adapters: {args.adapter_path}")
@@ -218,7 +217,7 @@ def _execute_training_sync(
             print(f"📈 LR schedule: {args.lr_schedule.get('name', 'constant')}")
 
         if hasattr(args, "grad_checkpoint") and args.grad_checkpoint:
-            print(f"💾 Gradient checkpointing: enabled")
+            print("💾 Gradient checkpointing: enabled")
 
         print()
 
@@ -234,7 +233,7 @@ def _execute_training_sync(
         adapter_file = adapter_path_obj / "adapters.safetensors"
         config_file = adapter_path_obj / "adapter_config.json"
 
-        result_text = f"✅ **MLX LoRA training complete!**\n\n"
+        result_text = "✅ **MLX LoRA training complete!**\n\n"
         result_text += "**📊 Training Summary:**\n"
         result_text += f"- Model: {args.model}\n"
         result_text += f"- Iterations: {args.iters}\n"
@@ -259,18 +258,18 @@ def _execute_training_sync(
         if checkpoints:
             result_text += f"- Checkpoints: {len(checkpoints)} timestamped checkpoints\n"
 
-        result_text += f"\n**🎯 Next steps:**\n"
-        result_text += f"```python\n"
-        result_text += f"from strands_mlx import MLXModel\n\n"
-        result_text += f"model = MLXModel(\n"
+        result_text += "\n**🎯 Next steps:**\n"
+        result_text += "```python\n"
+        result_text += "from strands_mlx import MLXModel\n\n"
+        result_text += "model = MLXModel(\n"
         result_text += f'    model_id="{args.model}",\n'
         result_text += f'    adapter_path="{args.adapter_path}"\n'
-        result_text += f")\n"
-        result_text += f"```"
+        result_text += ")\n"
+        result_text += "```"
 
         return {"status": "success", "content": [{"text": result_text}]}
 
-    except Exception as e:
+    except Exception:
         error_trace = traceback.format_exc()
         return {
             "status": "error",
@@ -469,11 +468,11 @@ def mlx_trainer(
                 status_text += f"**Duration:** {duration:.1f}s\n"
 
             if info["status"] == "running":
-                status_text += f"\n🏃 Training in progress...\n"
+                status_text += "\n🏃 Training in progress...\n"
             elif info["status"] == "completed":
-                status_text += f"\n✅ Training completed!\n"
+                status_text += "\n✅ Training completed!\n"
             elif info["status"] == "failed":
-                status_text += f"\n❌ Training failed\n"
+                status_text += "\n❌ Training failed\n"
                 if info.get("error"):
                     status_text += f"\n**Error:**\n```\n{info['error'][:500]}\n```\n"
 
@@ -554,7 +553,7 @@ def mlx_trainer(
                 ],
             }
 
-    except Exception as e:
+    except Exception:
         error_trace = traceback.format_exc()
         return {
             "status": "error",

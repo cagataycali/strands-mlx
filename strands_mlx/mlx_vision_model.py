@@ -18,17 +18,15 @@ from typing import (
     cast,
 )
 
-from pydantic import BaseModel
-from typing_extensions import TypedDict, Unpack, override
-
-from strands.types.content import ContentBlock, Messages
-from strands.types.streaming import StreamEvent
-from strands.types.tools import ToolChoice, ToolResult, ToolSpec, ToolUse
 from strands.models._validation import (
     validate_config_keys,
     warn_on_tool_choice_not_supported,
 )
 from strands.models.model import Model
+from strands.types.content import ContentBlock, Messages
+from strands.types.streaming import StreamEvent
+from strands.types.tools import ToolChoice, ToolResult, ToolSpec, ToolUse
+from typing_extensions import TypedDict, Unpack, override
 
 try:
     from mlx_vlm import load, stream_generate
@@ -331,8 +329,8 @@ class MLXVisionModel(Model):
             # Process video: Convert numpy arrays to PIL Images
             video_images = []
             if video:
-                from PIL import Image
                 import numpy as np
+                from PIL import Image
 
                 for vid_data in video:
                     if isinstance(vid_data, np.ndarray):

@@ -22,21 +22,18 @@ from typing import (
     cast,
 )
 
+from mlx_lm import load, stream_generate
+from mlx_lm.sample_utils import make_sampler
 from pydantic import BaseModel
-from typing_extensions import TypedDict, Unpack, override
-
-from strands.types.content import ContentBlock, Messages
-from strands.types.streaming import StreamEvent
-from strands.types.tools import ToolChoice, ToolResult, ToolSpec, ToolUse
 from strands.models._validation import (
     validate_config_keys,
     warn_on_tool_choice_not_supported,
 )
 from strands.models.model import Model
-
-from mlx_lm import load
-from mlx_lm import stream_generate
-from mlx_lm.sample_utils import make_sampler
+from strands.types.content import ContentBlock, Messages
+from strands.types.streaming import StreamEvent
+from strands.types.tools import ToolChoice, ToolResult, ToolSpec, ToolUse
+from typing_extensions import TypedDict, Unpack, override
 
 try:
     from huggingface_hub import snapshot_download

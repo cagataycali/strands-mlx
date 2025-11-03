@@ -7,8 +7,7 @@ Saves conversations turn-by-turn to prevent token overflow.
 import json
 import logging
 import os
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
     from strands.agent.agent import Agent
@@ -88,7 +87,6 @@ class MLXSessionManager(SessionManager):
             logger.debug(f"  {i}: role={role}")
 
         chat_messages = []
-        tools = []
 
         for msg in messages:
             role = msg.get("role") if isinstance(msg, dict) else msg.role
@@ -262,7 +260,7 @@ class MLXSessionManager(SessionManager):
             Formatted text string ready for training
         """
         # DEBUG: Show what we're formatting
-        logger.debug(f"\n_format_turn called:")
+        logger.debug("\n_format_turn called:")
         logger.debug(f"  user_messages: {len(user_messages)}")
         for i, msg in enumerate(user_messages):
             logger.debug(f"    {i}: role={msg['role']}")
@@ -300,10 +298,10 @@ class MLXSessionManager(SessionManager):
         else:
             # No tool calls, just add all assistant messages
             turn_messages.extend(assistant_messages)
-            logger.debug(f"  → Simple: no tool messages")
+            logger.debug("  → Simple: no tool messages")
 
         # DEBUG: Show message structure before template
-        logger.debug(f"  Messages being templated:")
+        logger.debug("  Messages being templated:")
         for i, msg in enumerate(turn_messages):
             has_reasoning = "reasoning_content" in msg
             logger.debug(f"    {i}: role={msg['role']}, has_reasoning={has_reasoning}")
@@ -406,21 +404,21 @@ class MLXSessionManager(SessionManager):
             last_assistant = current_turn["assistant_messages"][-1]
             has_tool_calls = last_assistant.get("tool_calls")
 
-            logger.debug(f"  Final turn check:")
+            logger.debug("  Final turn check:")
             logger.debug(f"    assistant_messages: {len(current_turn['assistant_messages'])}")
             logger.debug(f"    has_tool_results: {has_tool_results}")
             logger.debug(f"    last_has_tool_calls: {bool(has_tool_calls)}")
 
             # If last assistant has tool_calls, we MUST have tool_results
             if has_tool_calls and not has_tool_results:
-                logger.debug(f"  → Skipping incomplete turn (tool_calls without results)")
+                logger.debug("  → Skipping incomplete turn (tool_calls without results)")
                 return turns
 
             # If we have tool results, we need 2+ assistant messages
             if has_tool_results:
                 if len(current_turn["assistant_messages"]) < 2:
                     logger.debug(
-                        f"  → Skipping incomplete turn (has tool_results but only 1 assistant message)"
+                        "  → Skipping incomplete turn (has tool_results but only 1 assistant message)"
                     )
                     return turns
 
@@ -429,12 +427,12 @@ class MLXSessionManager(SessionManager):
 
                 if has_tool_calls:
                     logger.debug(
-                        f"  → Skipping incomplete turn (last assistant still has tool_calls)"
+                        "  → Skipping incomplete turn (last assistant still has tool_calls)"
                     )
                     return turns
 
                 if not has_text_response:
-                    logger.debug(f"  → Skipping incomplete turn (no final response)")
+                    logger.debug("  → Skipping incomplete turn (no final response)")
                     return turns
 
             # Simple turn (no tools) or complete tool cycle

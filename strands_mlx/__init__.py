@@ -2,7 +2,7 @@
 
 from strands_mlx.mlx_model import MLXModel
 from strands_mlx.mlx_session_manager import MLXSessionManager
-from strands_mlx.tools import mlx_trainer, mlx_invoke
+from strands_mlx.tools import mlx_invoke, mlx_trainer
 
 # Vision support (optional dependency)
 try:

@@ -1,0 +1,129 @@
+name: Manual Test Suite
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Test suite to run'
+        required: true
+        type: choice
+        options:
+          - all
+          - inference
+          - training
+          - vision
+          - audio
+          - video
+          - mlx_invoke
+          - vision_invoke
+        default: 'all'
+      python_version:
+        description: 'Python version'
+        required: false
+        type: choice
+        options:
+          - '3.10'
+          - '3.11'
+          - '3.12'
+          - '3.13'
+        default: '3.13'
+
+jobs:
+  check-authorization:
+    runs-on: ubuntu-latest
+    outputs:
+      authorized: ${{ steps.check.outputs.authorized }}
+    steps:
+      - name: Check if user is authorized
+        id: check
+        run: |
+          AUTHORIZED_USERS="${{ secrets.AUTHORIZED_USERS }}"
+          CURRENT_USER="${{ github.actor }}"
+          
+          if [ -z "$AUTHORIZED_USERS" ]; then
+            echo "authorized=true" >> $GITHUB_OUTPUT
+            echo "No AUTHORIZED_USERS secret set, allowing all users"
+          elif echo "$AUTHORIZED_USERS" | tr ',' '\n' | grep -qx "$CURRENT_USER"; then
+            echo "authorized=true" >> $GITHUB_OUTPUT
+            echo "User $CURRENT_USER is authorized"
+          else
+            echo "authorized=false" >> $GITHUB_OUTPUT
+            echo "User $CURRENT_USER is not authorized"
+          fi
+
+  unauthorized:
+    needs: check-authorization
+    if: needs.check-authorization.outputs.authorized != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Unauthorized
+        run: |
+          echo "❌ User ${{ github.actor }} is not authorized to run this workflow"
+          exit 1
+
+  run-tests:
+    needs: check-authorization
+    if: needs.check-authorization.outputs.authorized == 'true'
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ inputs.python_version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Install UV
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system -e ".[all]"
+          uv pip install --system pytest
+
+      - name: Show system info
+        run: |
+          echo "🖥️ System Info:"
+          uname -a
+          python --version
+          uv --version
+
+      - name: Run inference tests
+        if: inputs.test_suite == 'all' || inputs.test_suite == 'inference'
+        run: pytest tests/test_inference.py -v -s
+
+      - name: Run training tests
+        if: inputs.test_suite == 'all' || inputs.test_suite == 'training'
+        run: pytest tests/test_training.py -v -s
+
+      - name: Run vision tests
+        if: inputs.test_suite == 'all' || inputs.test_suite == 'vision'
+        run: pytest tests/test_vision.py -v -s
+
+      - name: Run audio tests
+        if: inputs.test_suite == 'all' || inputs.test_suite == 'audio'
+        run: pytest tests/test_audio.py -v -s
+
+      - name: Run video tests
+        if: inputs.test_suite == 'all' || inputs.test_suite == 'video'
+        run: pytest tests/test_video_single.py -v -s
+
+      - name: Run mlx_invoke tests
+        if: inputs.test_suite == 'all' || inputs.test_suite == 'mlx_invoke'
+        run: pytest tests/test_mlx_invoke.py -v -s
+
+      - name: Run vision_invoke tests
+        if: inputs.test_suite == 'all' || inputs.test_suite == 'vision_invoke'
+        run: pytest tests/test_vision_invoke.py -v -s
+
+      - name: Test Summary
+        if: always()
+        run: |
+          echo "## 🧪 Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Suite:** ${{ inputs.test_suite }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Python Version:** ${{ inputs.python_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Runner:** macOS-15 (Apple Silicon)" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY

@@ -7,8 +7,7 @@ import json
 import logging
 import os
 import random
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from strands import tool
 
@@ -101,7 +100,7 @@ def dataset_splitter(
         # Calculate split sizes
         train_size = int(total_examples * train_ratio)
         valid_size = int(total_examples * valid_ratio)
-        test_size = total_examples - train_size - valid_size  # Remaining goes to test
+        total_examples - train_size - valid_size  # Remaining goes to test
 
         # Split data
         train_data = examples[:train_size]

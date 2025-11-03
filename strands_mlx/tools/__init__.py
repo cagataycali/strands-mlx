@@ -1,7 +1,7 @@
 """Strands MLX Tools - Training and utilities for MLX models."""
 
-from .mlx_trainer import mlx_trainer
 from .mlx_invoke import mlx_invoke
+from .mlx_trainer import mlx_trainer
 
 # Vision tools (optional dependency)
 try:
