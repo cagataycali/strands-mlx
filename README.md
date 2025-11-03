@@ -1,5 +1,8 @@
 # strands-mlx
 
+[![PyPI version](https://badge.fury.io/py/strands-mlx.svg)](https://pypi.org/project/strands-mlx/)
+[![Interactive Agent](https://github.com/cagataycali/strands-mlx/actions/workflows/agent.yml/badge.svg)](https://github.com/cagataycali/strands-mlx/actions/workflows/agent.yml)
+
 **Running Strands Agents locally on Apple Silicon - inference, fine-tuning, vision in Python**
 
 MLX provider for [Strands Agents](https://strandsagents.com) with LoRA training pipelines.
